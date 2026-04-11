@@ -48,143 +48,63 @@ $imgBase    = APP_URL . '/../uploads/products/';
 layoutHeader('Order Now', '');
 ?>
 <style>
-  /* ── Menu Page ─────────────────────────────────────────────── */
+  /* ─────────────────────────────────────────────────────────────
+     MENU PAGE — Modern UI with CSS Variables
+     ───────────────────────────────────────────────────────────── */
   .menu-wrap {
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
   }
 
-  /* Search + filter bar */
+  /* ═══════════════════════════════════════════════════════════
+     NAVIGATION BAR — 1st Tier + Search
+     ═══════════════════════════════════════════════════════════ */
   .menu-controls {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
     position: sticky;
     top: var(--header-h);
     z-index: 40;
-    background: var(--background-color);
-    padding: var(--space-3) 0 var(--space-3);
-    margin-top: calc(-1 * var(--space-3));
+    background: var(--surface-color);
+    border-bottom: 1px solid var(--border-color);
+    margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) 0;
+    padding: var(--space-4);
+    box-shadow: var(--shadow-sm);
+    border-radius: var(--radius-md);
   }
 
-  /* Search row always stays on one line */
-  .menu-controls-top {
+  /* Single-row navigation: pills left, search right */
+  .menu-nav-row {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--space-4);
   }
 
-  .menu-search-wrap {
-    position: relative;
-    flex: 1;
-    min-width: 220px;
-  }
-
-  .menu-search-wrap i {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    font-size: 13px;
-    pointer-events: none;
-  }
-
-  .menu-search {
-    width: 100%;
-    height: 38px;
-    padding: 0 12px 0 36px;
-    border: 1.5px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    font-size: 0.84rem;
-    font-family: inherit;
-    color: var(--text-color);
-    background: var(--surface-color);
-    outline: none;
-    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-  }
-
-  .menu-search:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px var(--primary-subtle);
-  }
-
-  .menu-search::placeholder {
-    color: var(--text-placeholder);
-  }
-
-  /* Category pills — single horizontal scrolling row on all viewports */
+  /* Category pills container */
   .cat-pills {
     display: flex;
     gap: var(--space-2);
     overflow-x: auto;
     flex-wrap: nowrap;
     scrollbar-width: none;
-    padding-bottom: 2px;
+    flex: 1;
+    min-width: 0;
+    padding: var(--space-1) 0;
   }
 
   .cat-pills::-webkit-scrollbar {
     display: none;
   }
 
-  /* Sub-pill row — shown under the pills when a group is active */
-  .cat-subpills {
-    display: flex;
-    gap: var(--space-2);
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    scrollbar-width: none;
-    padding-bottom: 2px;
-  }
-
-  .cat-subpills::-webkit-scrollbar {
-    display: none;
-  }
-
-  .cat-subpill-group {
-    display: flex;
-    gap: var(--space-2);
-  }
-
-  /* Sub-pill button: slightly smaller than main pill */
-  .cat-subpill {
-    height: 28px;
-    padding: 0 12px;
-    border-radius: var(--radius-full);
-    font-size: 0.72rem;
-    font-weight: 600;
-    border: 1.5px solid var(--border-color);
-    background: var(--surface-raised);
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    font-family: inherit;
-    white-space: nowrap;
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .cat-subpill:hover {
-    border-color: var(--primary-color);
-    color: var(--primary-color);
-  }
-
-  .cat-subpill.active {
-    background: var(--primary-color);
-    color: var(--text-on-primary);
-    border-color: var(--primary-color);
-  }
-
+  /* Main category pill */
   .cat-pill {
-    height: 34px;
-    padding: 0 14px;
+    height: 36px;
+    padding: 0 var(--space-4);
     border-radius: var(--radius-full);
-    font-size: 0.78rem;
+    font-size: 0.82rem;
     font-weight: 600;
     border: 1.5px solid var(--border-color);
     background: var(--surface-color);
-    color: var(--text-muted);
+    color: var(--text-secondary);
     cursor: pointer;
     transition: all var(--transition-fast);
     display: inline-flex;
@@ -209,12 +129,12 @@ layoutHeader('Order Now', '');
   }
 
   .cat-pill .pill-count {
-    font-size: 0.62rem;
+    font-size: 0.65rem;
     font-weight: 700;
-    background: rgba(255, 255, 255, 0.22);
-    padding: 1px 6px;
+    background: rgba(255, 255, 255, 0.25);
+    padding: 2px 7px;
     border-radius: var(--radius-full);
-    line-height: 1.4;
+    line-height: 1.2;
   }
 
   .cat-pill:not(.active) .pill-count {
@@ -222,28 +142,414 @@ layoutHeader('Order Now', '');
     color: var(--text-muted);
   }
 
-  /* Group pill gets a chevron */
-  .cat-pill[data-type="group"]::after {
-    content: " ›";
-    font-size: 0.80rem;
-    opacity: 0.55;
+  /* Group pill chevron indicator */
+  .cat-pill[data-type="group"] {
+    padding-right: var(--space-3);
   }
 
-  .cat-pill[data-type="group"].active::after {
-    content: " ∨";
-    opacity: 0.80;
+  .cat-pill[data-type="group"] .pill-chevron {
+    font-size: 0.7rem;
+    margin-left: 2px;
+    transition: transform var(--transition-fast);
   }
 
-  /* Category sections */
+  .cat-pill[data-type="group"].active .pill-chevron {
+    transform: rotate(180deg);
+  }
+
+  /* Search box — right-aligned */
+  .menu-search-wrap {
+    position: relative;
+    flex-shrink: 0;
+    width: 220px;
+  }
+
+  .menu-search-wrap i {
+    position: absolute;
+    left: var(--space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    pointer-events: none;
+  }
+
+  .menu-search {
+    width: 100%;
+    height: 36px;
+    padding: 0 var(--space-3) 0 36px;
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-full);
+    font-size: 0.82rem;
+    font-family: inherit;
+    color: var(--text-color);
+    background: var(--surface-color);
+    outline: none;
+    transition: all var(--transition-fast);
+  }
+
+  .menu-search:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-subtle);
+    background: var(--surface-raised);
+  }
+
+  .menu-search::placeholder {
+    color: var(--text-placeholder);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     2ND TIER NAVIGATION — Dropdown/Expandable
+     ═══════════════════════════════════════════════════════════ */
+  .cat-subpills {
+    display: none;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px dashed var(--border-color);
+    animation: slideDown 0.2s ease;
+  }
+
+  .cat-subpills.open {
+    display: flex;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .cat-subpill-group {
+    display: none;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .cat-subpill-group.active {
+    display: flex;
+  }
+
+  .cat-subpill {
+    height: 30px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid var(--border-color);
+    background: var(--surface-raised);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-family: inherit;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .cat-subpill:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: var(--primary-subtle);
+  }
+
+  .cat-subpill.active {
+    background: var(--primary-color);
+    color: var(--text-on-primary);
+    border-color: var(--primary-color);
+  }
+
+  .cat-subpill .pill-count {
+    font-size: 0.6rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.25);
+    padding: 1px 5px;
+    border-radius: var(--radius-full);
+  }
+
+  .cat-subpill:not(.active) .pill-count {
+    background: var(--surface-sunken);
+    color: var(--text-muted);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     PRODUCT GRID
+     ═══════════════════════════════════════════════════════════ */
+  .menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: var(--space-4);
+  }
+
+  /* Product card */
+  .menu-card {
+    background: var(--surface-color);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-xs);
+    user-select: none;
+    position: relative;
+  }
+
+  .menu-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-4px);
+  }
+
+  .menu-card:active {
+    transform: translateY(-2px) scale(0.98);
+  }
+
+  .menu-card.unavail {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+    filter: grayscale(0.6);
+  }
+
+  .menu-card.just-added {
+    animation: cardPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes cardPop {
+    0% {
+      transform: scale(1);
+    }
+
+    40% {
+      transform: scale(1.05) translateY(-6px);
+    }
+
+    100% {
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  /* Card image area */
+  .menu-card-img {
+    height: 140px;
+    background: linear-gradient(135deg, var(--surface-raised) 0%, var(--surface-sunken) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .menu-card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+  }
+
+  .menu-card:hover .menu-card-img img {
+    transform: scale(1.08);
+  }
+
+  .menu-card-img-icon {
+    font-size: 36px;
+    color: var(--border-strong);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     BEST SELLER BADGE — Overlay
+     ═══════════════════════════════════════════════════════════ */
+  .best-seller-badge {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--space-2);
+    z-index: 10;
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-dark) 100%);
+    color: var(--text-on-accent);
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-xs);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 2px 8px rgba(240, 180, 41, 0.4);
+  }
+
+  .best-seller-badge i {
+    font-size: 0.65rem;
+    color: #fff;
+  }
+
+  /* Unavailable ribbon */
+  .unavail-ribbon {
+    position: absolute;
+    top: var(--space-3);
+    right: -2px;
+    background: var(--status-cancelled);
+    color: var(--text-on-primary);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 3px 12px 3px 8px;
+    text-transform: uppercase;
+    border-radius: var(--radius-xs) 0 0 var(--radius-xs);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* In-cart badge */
+  .in-cart-badge {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    z-index: 10;
+    background: var(--primary-color);
+    color: var(--text-on-primary);
+    font-size: 0.65rem;
+    font-weight: 800;
+    min-width: 22px;
+    height: 22px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-primary);
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.2s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+
+  .menu-card.has-items .in-cart-badge {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* Card body */
+  .menu-card-body {
+    padding: var(--space-3);
+    padding-bottom: var(--space-4);
+  }
+
+  .menu-card-name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-color);
+    line-height: 1.35;
+    margin-bottom: var(--space-2);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .menu-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .menu-card-price {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--primary-color);
+    letter-spacing: -0.02em;
+  }
+
+  /* Rating badge — using accent color */
+  .card-rating-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: var(--accent-subtle);
+    border: 1px solid rgba(240, 180, 41, 0.25);
+    color: var(--accent-dark);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+  }
+
+  .card-rating-badge i {
+    color: var(--accent-color);
+    font-size: 0.65rem;
+  }
+
+  /* Add button */
+  .menu-card-add {
+    position: absolute;
+    bottom: var(--space-3);
+    right: var(--space-3);
+    width: 32px;
+    height: 32px;
+    background: var(--primary-color);
+    color: var(--text-on-primary);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    box-shadow: var(--shadow-primary);
+    transition: all var(--transition-fast);
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  .menu-card:hover .menu-card-add {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .menu-card-add:hover {
+    transform: scale(1.15);
+    background: var(--primary-dark);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     CATEGORY SECTIONS
+     ═══════════════════════════════════════════════════════════ */
+  .group-section {
+    margin-bottom: var(--space-8);
+  }
+
+  .group-section-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+    border-bottom: 2px solid var(--primary-color);
+  }
+
+  .group-section-title i {
+    color: var(--primary-color);
+    font-size: 0.95rem;
+  }
+
   .cat-section {
-    scroll-margin-top: calc(var(--header-h) + 90px);
+    scroll-margin-top: calc(var(--header-h) + 100px);
+    margin-bottom: var(--space-5);
   }
 
   .cat-section-title {
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.1em;
     color: var(--text-muted);
     display: flex;
     align-items: center;
@@ -258,207 +564,28 @@ layoutHeader('Order Now', '');
     background: var(--border-color);
   }
 
-  /* Product grid */
-  .menu-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: var(--space-4);
-  }
-
-  /* Product card — improved */
-  .menu-card {
-    background: var(--surface-color);
-    border: 1.5px solid var(--border-color);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    cursor: pointer;
-    transition: border-color var(--transition-fast),
-      box-shadow var(--transition-fast),
-      transform var(--transition-fast);
-    box-shadow: var(--shadow-xs);
-    user-select: none;
-    position: relative;
-  }
-
-  .menu-card:hover {
-    border-color: var(--primary-color);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-3px);
-  }
-
-  .menu-card:active {
-    transform: translateY(0) scale(0.98);
-  }
-
-  .menu-card.unavail {
-    opacity: 0.45;
-    cursor: not-allowed;
-    pointer-events: none;
-    filter: grayscale(0.5);
-  }
-
-  .menu-card.just-added {
-    animation: cardBounce 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-
-  @keyframes cardBounce {
-    0% {
-      transform: scale(1);
-    }
-
-    40% {
-      transform: scale(1.04) translateY(-4px);
-    }
-
-    70% {
-      transform: scale(0.97);
-    }
-
-    100% {
-      transform: scale(1);
-    }
-  }
-
-  .menu-card-img {
-    height: 118px;
-    background: var(--surface-raised);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border-bottom: 1px solid var(--border-color);
-    position: relative;
-  }
-
-  .menu-card-img img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.4s ease;
-  }
-
-  .menu-card:hover .menu-card-img img {
-    transform: scale(1.06);
-  }
-
-  .menu-card-img-icon {
-    font-size: 32px;
-    color: var(--border-strong);
-  }
-
-  /* Unavailable ribbon */
-  .unavail-ribbon {
-    position: absolute;
-    top: 10px;
-    left: -1px;
-    background: var(--status-cancelled);
-    color: var(--text-on-primary);
-    font-size: 0.60rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    padding: 3px 10px 3px 8px;
-    text-transform: uppercase;
-    border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
-  }
-
-  .menu-card-body {
-    padding: var(--space-3) var(--space-3) var(--space-4);
-  }
-
-  .menu-card-name {
-    font-size: 0.86rem;
-    font-weight: 700;
-    color: var(--text-color);
-    line-height: 1.3;
-    margin-bottom: 4px;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-  }
-
-  .menu-card-price {
-    font-size: 1.00rem;
-    font-weight: 800;
-    color: var(--primary-color);
-    letter-spacing: -0.01em;
-  }
-
-  .menu-card-add {
-    position: absolute;
-    bottom: var(--space-3);
-    right: var(--space-3);
-    width: 28px;
-    height: 28px;
-    background: var(--primary-color);
-    color: var(--text-on-primary);
-    border-radius: var(--radius-full);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 700;
-    box-shadow: var(--shadow-primary);
-    transition: transform var(--transition-fast), background var(--transition-fast);
-    opacity: 0;
-  }
-
-  .menu-card:hover .menu-card-add {
-    opacity: 1;
-  }
-
-  .menu-card-add:hover {
-    transform: scale(1.15);
-    background: var(--primary-dark);
-  }
-
-  /* In-cart badge */
-  .in-cart-badge {
-    position: absolute;
-    top: var(--space-2);
-    right: var(--space-2);
-    background: var(--primary-color);
-    color: var(--text-on-primary);
-    font-size: 0.60rem;
-    font-weight: 800;
-    width: 20px;
-    height: 20px;
-    border-radius: var(--radius-full);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--shadow-primary);
-    opacity: 0;
-    transform: scale(0.5);
-    transition: opacity 0.15s, transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1);
-  }
-
-  .menu-card.has-items .in-cart-badge {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  /* Floating cart bar */
+  /* ═══════════════════════════════════════════════════════════
+     FLOATING CART BAR
+     ═══════════════════════════════════════════════════════════ */
   .cart-bar {
     position: fixed;
-    bottom: 24px;
+    bottom: var(--space-6);
     left: 50%;
-    transform: translateX(-50%);
+    transform: translateX(-50%) translateY(100px);
     z-index: 90;
     background: var(--text-color);
     color: var(--text-on-primary);
     border-radius: var(--radius-full);
-    padding: 0 6px 0 20px;
-    height: 52px;
+    padding: 0 8px 0 var(--space-5);
+    height: 56px;
     display: flex;
     align-items: center;
-    gap: var(--space-5);
+    gap: var(--space-4);
     box-shadow: var(--shadow-xl);
-    min-width: 280px;
-    max-width: 480px;
-    transition: transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1), opacity 0.2s;
+    min-width: 300px;
+    max-width: 500px;
+    transition: transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1), opacity 0.2s;
     opacity: 0;
-    transform: translateX(-50%) translateY(80px);
     pointer-events: none;
   }
 
@@ -480,18 +607,18 @@ layoutHeader('Order Now', '');
   }
 
   .cart-bar-total {
-    font-size: 1.05rem;
+    font-size: 1.1rem;
     font-weight: 800;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }
 
   .cart-bar-btn {
     background: var(--primary-color);
     color: var(--text-on-primary);
-    height: 40px;
-    padding: 0 20px;
+    height: 42px;
+    padding: 0 var(--space-5);
     border-radius: var(--radius-full);
-    font-size: 0.84rem;
+    font-size: 0.85rem;
     font-weight: 700;
     font-family: inherit;
     border: none;
@@ -499,14 +626,14 @@ layoutHeader('Order Now', '');
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    transition: background var(--transition-fast), transform var(--transition-fast);
+    transition: all var(--transition-fast);
     text-decoration: none;
     white-space: nowrap;
-    box-shadow: 0 2px 10px rgba(192, 57, 43, 0.35);
+    box-shadow: 0 2px 12px rgba(192, 57, 43, 0.4);
   }
 
   .cart-bar-btn:hover {
-    background: var(--primary-dark);
+    background: var(--primary-light);
     transform: scale(1.03);
   }
 
@@ -514,69 +641,63 @@ layoutHeader('Order Now', '');
   .no-results {
     grid-column: 1/-1;
     text-align: center;
-    padding: var(--space-10);
+    padding: var(--space-10) var(--space-4);
     color: var(--text-muted);
   }
 
   .no-results i {
-    font-size: 32px;
-    opacity: 0.2;
+    font-size: 40px;
+    opacity: 0.25;
     display: block;
-    margin-bottom: var(--space-3);
-  }
-
-  .group-section {
-    margin-bottom: var(--space-7);
-  }
-
-  .group-section-title {
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: var(--text-color);
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
     margin-bottom: var(--space-4);
-    padding-bottom: var(--space-3);
-    border-bottom: 2px solid var(--border-color);
+    color: var(--border-strong);
   }
 
-  .group-section-title i {
-    color: var(--primary-color);
+  .no-results p {
     font-size: 0.9rem;
   }
 
-  .cat-group-label {
-    font-size: 0.60rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--text-muted);
-    padding: 0 6px;
-    border-left: 1.5px solid var(--border-color);
-    margin-left: 2px;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    white-space: nowrap;
+  /* ═══════════════════════════════════════════════════════════
+     RESPONSIVE
+     ═══════════════════════════════════════════════════════════ */
+  @media (max-width: 768px) {
+    .menu-nav-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .menu-search-wrap {
+      width: 100%;
+      order: -1;
+    }
+
+    .cat-pills {
+      order: 1;
+    }
+
+    .menu-controls {
+      padding: var(--space-3);
+    }
   }
 
-  /* Responsive */
   @media (max-width: 600px) {
     .menu-grid {
-      grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
       gap: var(--space-3);
     }
 
     .menu-card-img {
-      height: 100px;
+      height: 110px;
     }
 
     .cart-bar {
       left: var(--space-4);
       right: var(--space-4);
-      transform: none;
+      transform: translateY(100px);
       min-width: unset;
+      border-radius: var(--radius-lg);
+      padding: 0 var(--space-4);
+      height: 52px;
     }
 
     .cart-bar.visible {
@@ -612,56 +733,57 @@ layoutHeader('Order Now', '');
     </div>
   </div>
 
-  <!-- Sticky controls -->
+  <!-- Sticky navigation bar -->
   <div class="menu-controls">
-    <!-- Row 1: search + cart button -->
-    <div class="menu-controls-top">
+    <!-- Single row: pills left, search right -->
+    <div class="menu-nav-row">
+      <div class="cat-pills" id="cat-pills">
+        <button class="cat-pill active" data-cat="all" data-type="all">
+          All <span class="pill-count" id="pill-count-all"><?= count($products) ?></span>
+        </button>
+        <?php
+        $catCounts = [];
+        foreach ($products as $p) $catCounts[$p['cat_id']] = ($catCounts[$p['cat_id']] ?? 0) + 1;
+        foreach ($catGroups as $group):
+          $groupSubs = $catsByParent[$group['id']] ?? [];
+          $groupCount = array_sum(array_map(fn($s) => $catCounts[$s['id']] ?? 0, $groupSubs));
+          if ($groupCount === 0) continue;
+        ?>
+          <button class="cat-pill" data-cat="group-<?= $group['id'] ?>"
+            data-type="group" data-group-id="<?= $group['id'] ?>">
+            <?= e($group['name']) ?> <span class="pill-count"><?= $groupCount ?></span>
+            <i class="fa-solid fa-chevron-down pill-chevron"></i>
+          </button>
+        <?php endforeach; ?>
+        <?php foreach ($catStandalone as $cat):
+          $cnt = $catCounts[$cat['id']] ?? 0;
+          if ($cnt === 0) continue;
+        ?>
+          <button class="cat-pill" data-cat="<?= $cat['id'] ?>"
+            data-type="leaf" data-section="cat-<?= $cat['id'] ?>">
+            <?= e($cat['name']) ?> <span class="pill-count"><?= $cnt ?></span>
+          </button>
+        <?php endforeach; ?>
+      </div>
       <div class="menu-search-wrap">
         <i class="fa-solid fa-magnifying-glass"></i>
         <input class="menu-search" id="menu-search" type="search" placeholder="Search menu…" autocomplete="off">
       </div>
     </div>
-    <!-- Row 2: main category pills -->
-    <div class="cat-pills" id="cat-pills">
-      <button class="cat-pill active" data-cat="all" data-type="all">
-        All <span class="pill-count" id="pill-count-all"><?= count($products) ?></span>
-      </button>
-      <?php
-      $catCounts = [];
-      foreach ($products as $p) $catCounts[$p['cat_id']] = ($catCounts[$p['cat_id']] ?? 0) + 1;
-      foreach ($catGroups as $group):
-        $groupSubs = $catsByParent[$group['id']] ?? [];
-        $groupCount = array_sum(array_map(fn($s) => $catCounts[$s['id']] ?? 0, $groupSubs));
-        if ($groupCount === 0) continue;
-      ?>
-        <button class="cat-pill" data-cat="group-<?= $group['id'] ?>"
-          data-type="group" data-group-id="<?= $group['id'] ?>">
-          <?= e($group['name']) ?> <span class="pill-count"><?= $groupCount ?></span>
-        </button>
-      <?php endforeach; ?>
-      <?php foreach ($catStandalone as $cat):
-        $cnt = $catCounts[$cat['id']] ?? 0;
-        if ($cnt === 0) continue;
-      ?>
-        <button class="cat-pill" data-cat="<?= $cat['id'] ?>"
-          data-type="leaf" data-section="cat-<?= $cat['id'] ?>">
-          <?= e($cat['name']) ?> <span class="pill-count"><?= $cnt ?></span>
-        </button>
-      <?php endforeach; ?>
-    </div>
-    <!-- Row 3: sub-category pills (shown when a group is active) -->
-    <div class="cat-subpills" id="cat-subpills" style="display:none">
+
+    <!-- 2nd tier: Sub-category pills (dropdown) -->
+    <div class="cat-subpills" id="cat-subpills">
       <?php foreach ($catGroups as $group):
         $groupSubs = $catsByParent[$group['id']] ?? [];
       ?>
-        <div class="cat-subpill-group" id="subpills-<?= $group['id'] ?>" style="display:none">
+        <div class="cat-subpill-group" id="subpills-<?= $group['id'] ?>">
           <?php foreach ($groupSubs as $sub):
             $subCount = $catCounts[$sub['id']] ?? 0;
             if ($subCount === 0) continue;
           ?>
             <button class="cat-subpill" data-cat="<?= $sub['id'] ?>"
               data-section="cat-<?= $sub['id'] ?>" data-parent="<?= $group['id'] ?>">
-              <?= e($sub['name']) ?> <span class="pill-count" style="font-size:0.58rem;background:var(--surface-sunken);color:var(--text-muted);padding:1px 5px;border-radius:var(--radius-full)"><?= $subCount ?></span>
+              <?= e($sub['name']) ?> <span class="pill-count"><?= $subCount ?></span>
             </button>
           <?php endforeach; ?>
         </div>
@@ -694,6 +816,8 @@ layoutHeader('Order Now', '');
         <div class="group-section-title">
           <?php if (!empty($group['icon'])): ?>
             <i class="fa-solid <?= e($group['icon']) ?>"></i>
+          <?php else: ?>
+            <i class="fa-solid fa-utensils"></i>
           <?php endif; ?>
           <?= e($group['name']) ?>
         </div>
@@ -720,6 +844,9 @@ layoutHeader('Order Now', '');
                     <?php else: ?>
                       <span class="menu-card-img-icon"><i class="fa-solid fa-mug-hot"></i></span>
                     <?php endif; ?>
+                    <?php if ($p['total_sold'] >= $bestSellerThreshold && $p['total_sold'] > 0): ?>
+                      <div class="best-seller-badge"><i class="fa-solid fa-fire"></i> Best Seller</div>
+                    <?php endif; ?>
                     <?php if (!$p['is_available']): ?>
                       <div class="unavail-ribbon">Unavailable</div>
                     <?php endif; ?>
@@ -727,14 +854,13 @@ layoutHeader('Order Now', '');
                   </div>
 
                   <div class="menu-card-body">
-                    <?php if ($p['total_sold'] >= $bestSellerThreshold && $p['total_sold'] > 0): ?>
-                      <div class="best-seller-badge"><i class="fa-solid fa-fire"></i> Best Seller</div>
-                    <?php endif; ?>
                     <div class="menu-card-name"><?= e($p['name']) ?></div>
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+                    <div class="menu-card-meta">
                       <div class="menu-card-price"><?= peso($p['price']) ?></div>
                       <?php if ($p['avg_rating'] > 0): ?>
-                        <span class="card-rating-badge">★ <?= $p['avg_rating'] ?></span>
+                        <span class="card-rating-badge">
+                          <i class="fa-solid fa-star"></i> <?= $p['avg_rating'] ?>
+                        </span>
                       <?php endif; ?>
                     </div>
                   </div>
@@ -770,20 +896,22 @@ layoutHeader('Order Now', '');
                 <?php else: ?>
                   <span class="menu-card-img-icon"><i class="fa-solid fa-mug-hot"></i></span>
                 <?php endif; ?>
+                <?php if ($p['total_sold'] >= $bestSellerThreshold && $p['total_sold'] > 0): ?>
+                  <div class="best-seller-badge"><i class="fa-solid fa-fire"></i> Best Seller</div>
+                <?php endif; ?>
                 <?php if (!$p['is_available']): ?>
                   <div class="unavail-ribbon">Unavailable</div>
                 <?php endif; ?>
                 <div class="in-cart-badge" id="badge-<?= $p['id'] ?>">1</div>
               </div>
               <div class="menu-card-body">
-                <?php if ($p['total_sold'] >= $bestSellerThreshold && $p['total_sold'] > 0): ?>
-                  <div class="best-seller-badge"><i class="fa-solid fa-fire"></i> Best Seller</div>
-                <?php endif; ?>
                 <div class="menu-card-name"><?= e($p['name']) ?></div>
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+                <div class="menu-card-meta">
                   <div class="menu-card-price"><?= peso($p['price']) ?></div>
                   <?php if ($p['avg_rating'] > 0): ?>
-                    <span class="card-rating-badge">★ <?= $p['avg_rating'] ?></span>
+                    <span class="card-rating-badge">
+                      <i class="fa-solid fa-star"></i> <?= $p['avg_rating'] ?>
+                    </span>
                   <?php endif; ?>
                 </div>
               </div>
@@ -796,7 +924,7 @@ layoutHeader('Order Now', '');
       </div>
     <?php endforeach; ?>
 
-    <!-- No results state (hidden by default) -->
+    <!-- No results state -->
     <div id="no-results" style="display:none" class="no-results">
       <i class="fa-solid fa-magnifying-glass"></i>
       <p>No items match "<span id="no-results-term"></span>"</p>
@@ -807,7 +935,6 @@ layoutHeader('Order Now', '');
 
 <!-- ══════════════ CUSTOMISATION MODAL ══════════════ -->
 <style>
-  /* Backdrop */
   .cm-backdrop {
     position: fixed;
     inset: 0;
@@ -827,7 +954,6 @@ layoutHeader('Order Now', '');
     pointer-events: all;
   }
 
-  /* Sheet */
   .cm-sheet {
     background: var(--surface-color);
     width: 100%;
@@ -846,17 +972,15 @@ layoutHeader('Order Now', '');
     transform: translateY(0);
   }
 
-  /* Drag handle */
   .cm-handle {
     width: 36px;
     height: 4px;
     border-radius: 2px;
     background: var(--border-strong);
-    margin: 10px auto 0;
+    margin: var(--space-3) auto 0;
     flex-shrink: 0;
   }
 
-  /* Header row */
   .cm-header {
     display: flex;
     align-items: flex-start;
@@ -908,8 +1032,8 @@ layoutHeader('Order Now', '');
   }
 
   .cm-close {
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     border-radius: var(--radius-full);
     background: var(--surface-raised);
     border: 1px solid var(--border-color);
@@ -918,7 +1042,7 @@ layoutHeader('Order Now', '');
     justify-content: center;
     cursor: pointer;
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: 14px;
     flex-shrink: 0;
     transition: all var(--transition-fast);
   }
@@ -928,7 +1052,6 @@ layoutHeader('Order Now', '');
     color: var(--status-cancelled);
   }
 
-  /* Scrollable body */
   .cm-body {
     flex: 1;
     overflow-y: auto;
@@ -936,7 +1059,6 @@ layoutHeader('Order Now', '');
     scrollbar-width: thin;
   }
 
-  /* Section label */
   .cm-label {
     font-size: 0.68rem;
     font-weight: 800;
@@ -946,7 +1068,6 @@ layoutHeader('Order Now', '');
     margin: var(--space-4) 0 var(--space-2);
   }
 
-  /* Size buttons */
   .cm-size-group {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -989,15 +1110,11 @@ layoutHeader('Order Now', '');
     display: block;
   }
 
-  .cm-size-btn.active .cm-size-name {
-    color: var(--primary-color);
-  }
-
+  .cm-size-btn.active .cm-size-name,
   .cm-size-btn.active .cm-size-adj {
     color: var(--primary-color);
   }
 
-  /* Sugar level chips */
   .cm-sugar-group {
     display: flex;
     gap: var(--space-2);
@@ -1005,8 +1122,8 @@ layoutHeader('Order Now', '');
   }
 
   .cm-sugar-btn {
-    height: 32px;
-    padding: 0 14px;
+    height: 34px;
+    padding: 0 var(--space-4);
     border-radius: var(--radius-full);
     border: 1.5px solid var(--border-color);
     background: var(--surface-color);
@@ -1030,7 +1147,6 @@ layoutHeader('Order Now', '');
     border-color: var(--primary-color);
   }
 
-  /* Add-on checkboxes */
   .cm-addon-list {
     display: flex;
     flex-direction: column;
@@ -1041,7 +1157,7 @@ layoutHeader('Order Now', '');
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    padding: var(--space-3) var(--space-3);
+    padding: var(--space-3);
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-sm);
     cursor: pointer;
@@ -1059,8 +1175,8 @@ layoutHeader('Order Now', '');
   }
 
   .cm-addon-check {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     border-radius: var(--radius-xs);
     border: 2px solid var(--border-color);
     flex-shrink: 0;
@@ -1068,7 +1184,7 @@ layoutHeader('Order Now', '');
     align-items: center;
     justify-content: center;
     transition: all var(--transition-fast);
-    font-size: 10px;
+    font-size: 11px;
     color: transparent;
   }
 
@@ -1091,12 +1207,11 @@ layoutHeader('Order Now', '');
   }
 
   .cm-addon-price {
-    font-size: 0.80rem;
+    font-size: 0.82rem;
     font-weight: 700;
     color: var(--primary-color);
   }
 
-  /* No add-ons notice */
   .cm-no-addons {
     font-size: 0.78rem;
     color: var(--text-muted);
@@ -1104,10 +1219,9 @@ layoutHeader('Order Now', '');
     padding: var(--space-3) 0;
   }
 
-  /* Notes input */
   .cm-notes-input {
     width: 100%;
-    padding: var(--space-3) var(--space-3);
+    padding: var(--space-3);
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-sm);
     font-size: 0.84rem;
@@ -1128,14 +1242,12 @@ layoutHeader('Order Now', '');
     color: var(--text-placeholder);
   }
 
-  /* Divider */
   .cm-divider {
     height: 1px;
     background: var(--border-color);
     margin: var(--space-4) 0 0;
   }
 
-  /* Footer: qty + add button */
   .cm-footer {
     padding: var(--space-4) var(--space-5) var(--space-5);
     border-top: 1px solid var(--border-color);
@@ -1161,8 +1273,8 @@ layoutHeader('Order Now', '');
   }
 
   .cm-qty-btn {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     border-radius: calc(var(--radius-sm) - 2px);
     background: transparent;
     border: none;
@@ -1196,7 +1308,7 @@ layoutHeader('Order Now', '');
 
   .cm-add-btn {
     flex: 1;
-    height: 46px;
+    height: 48px;
     background: var(--primary-color);
     color: var(--text-on-primary);
     border: none;
@@ -1241,7 +1353,6 @@ layoutHeader('Order Now', '');
   <div class="cm-sheet">
     <div class="cm-handle"></div>
 
-    <!-- Header -->
     <div class="cm-header">
       <div class="cm-thumb">
         <img id="cm-img" src="" alt="" style="display:none">
@@ -1254,10 +1365,7 @@ layoutHeader('Order Now', '');
       <button class="cm-close" onclick="closeCustomModal()"><i class="fa-solid fa-xmark"></i></button>
     </div>
 
-    <!-- Scrollable options -->
     <div class="cm-body">
-
-      <!-- Size -->
       <div id="cm-section-size">
         <div class="cm-label">Size</div>
         <div class="cm-size-group">
@@ -1270,9 +1378,8 @@ layoutHeader('Order Now', '');
             </button>
           <?php endforeach; ?>
         </div>
-      </div><!-- /cm-section-size -->
+      </div>
 
-      <!-- Sugar Level -->
       <div id="cm-section-sugar">
         <div class="cm-label">Sugar Level</div>
         <div class="cm-sugar-group">
@@ -1284,13 +1391,12 @@ layoutHeader('Order Now', '');
             </button>
           <?php endforeach; ?>
         </div>
-      </div><!-- /cm-section-sugar -->
+      </div>
 
-      <!-- Add-ons -->
       <div id="cm-section-addons">
         <div class="cm-label">Add-ons</div>
         <?php if (empty($addons)): ?>
-          <div class="cm-no-addons">No add-ons available yet. Add products to the "Add-ons" category in Admin → Products.</div>
+          <div class="cm-no-addons">No add-ons available yet.</div>
         <?php else: ?>
           <div class="cm-addon-list">
             <?php foreach ($addons as $addon): ?>
@@ -1306,19 +1412,16 @@ layoutHeader('Order Now', '');
             <?php endforeach; ?>
           </div>
         <?php endif; ?>
-      </div><!-- /cm-section-addons -->
+      </div>
 
-      <!-- Notes -->
       <div class="cm-label">Special Instructions</div>
       <textarea id="cm-notes" class="cm-notes-input" rows="2"
         placeholder="e.g. extra hot, less ice, no whip…"></textarea>
       <div class="cm-divider"></div>
     </div>
 
-    <!-- Footer -->
     <div class="cm-footer">
       <div class="cm-footer-row">
-        <!-- Quantity -->
         <div class="cm-qty-control">
           <button class="cm-qty-btn" onclick="
             const i=document.getElementById('cm-qty');
@@ -1329,7 +1432,6 @@ layoutHeader('Order Now', '');
             const i=document.getElementById('cm-qty');
             i.value=Math.min(99,parseInt(i.value||1)+1); recalcModal();">+</button>
         </div>
-        <!-- Add button -->
         <button class="cm-add-btn" onclick="confirmAddToCart()">
           <i class="fa-solid fa-cart-plus"></i>
           Add to Cart
@@ -1340,7 +1442,6 @@ layoutHeader('Order Now', '');
         </button>
       </div>
     </div>
-
   </div>
 </div>
 
@@ -1357,10 +1458,8 @@ layoutHeader('Order Now', '');
 
 <script>
   /* ════════════════════════════════════════════════
-   CART  —  keyed by  productId + "|" + customKey
-   so same product with different customisations =
-   separate line items in the cart.
-   ════════════════════════════════════════════════ */
+     CART — keyed by productId + customKey
+     ════════════════════════════════════════════════ */
   function getCart() {
     return JSON.parse(sessionStorage.getItem('student_cart') || '{}');
   }
@@ -1423,24 +1522,17 @@ layoutHeader('Order Now', '');
      CUSTOMISATION MODAL
      ════════════════════════════════════════════════ */
   const SIZES = [{
-      label: 'Small',
-      adj: -10
-    },
-    {
-      label: 'Medium',
-      adj: 0
-    },
-    {
-      label: 'Large',
-      adj: +15
-    },
-  ];
+    label: 'Small',
+    adj: -10
+  }, {
+    label: 'Medium',
+    adj: 0
+  }, {
+    label: 'Large',
+    adj: +15
+  }];
   const SUGAR_LEVELS = ['Full Sugar', 'Less Sugar', '50% Sugar', 'No Sugar'];
-  const ADDONS = <?php echo json_encode(array_map(fn($a) => [
-                    'id'    => $a['id'],
-                    'name'  => $a['name'],
-                    'price' => (float)$a['price'],
-                  ], $addons)); ?>;
+  const ADDONS = <?php echo json_encode(array_map(fn($a) => ['id' => $a['id'], 'name' => $a['name'], 'price' => (float)$a['price']], $addons)); ?>;
 
   let _modal = {
     id: null,
@@ -1477,12 +1569,10 @@ layoutHeader('Order Now', '');
       iconEl.style.display = '';
     }
 
-    // Show/hide customisation sections based on per-product flags
     document.getElementById('cm-section-size').style.display = hasSizes ? '' : 'none';
     document.getElementById('cm-section-sugar').style.display = hasSugar ? '' : 'none';
     document.getElementById('cm-section-addons').style.display = hasAddons ? '' : 'none';
 
-    // Reset to defaults
     document.querySelectorAll('.cm-size-btn').forEach((b, i) => b.classList.toggle('active', i === 1));
     document.querySelectorAll('.cm-sugar-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
     document.querySelectorAll('.cm-addon-cb').forEach(cb => cb.checked = false);
@@ -1533,7 +1623,6 @@ layoutHeader('Order Now', '');
     }
 
     const finalPrice = _modal.basePrice + sizeAdj + addonTotal;
-    // Build a unique key from whichever options are active for this product
     const keyParts = [_modal.id];
     if (size) keyParts.push(size);
     if (sugar) keyParts.push(sugar);
@@ -1563,7 +1652,9 @@ layoutHeader('Order Now', '');
     closeCustomModal();
   }
 
-  /* ── Category filter ──────────────────────────── */
+  /* ════════════════════════════════════════════════
+     CATEGORY FILTER — with dropdown behavior
+     ════════════════════════════════════════════════ */
   document.getElementById('cat-pills').addEventListener('click', e => {
     const pill = e.target.closest('.cat-pill');
     if (!pill) return;
@@ -1571,33 +1662,29 @@ layoutHeader('Order Now', '');
     const type = pill.dataset.type;
     const groupId = pill.dataset.groupId;
 
-    // Deactivate all main pills and clear subcats first
     document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.cat-subpill').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.cat-subpill-group').forEach(g => g.style.display = 'none');
+    document.querySelectorAll('.cat-subpill-group').forEach(g => g.classList.remove('active'));
 
     pill.classList.add('active');
 
     const subpillsBar = document.getElementById('cat-subpills');
 
     if (type === 'group' && groupId) {
-      // Show sub-pill row for this group
-      subpillsBar.style.display = 'flex';
+      subpillsBar.classList.add('open');
       const subgrp = document.getElementById('subpills-' + groupId);
       if (subgrp) {
-        subgrp.style.display = 'flex';
-        // Auto-activate first sub-pill
+        subgrp.classList.add('active');
         const first = subgrp.querySelector('.cat-subpill');
         if (first) first.classList.add('active');
       }
     } else {
-      subpillsBar.style.display = 'none';
+      subpillsBar.classList.remove('open');
     }
 
     const cat = _getMenuCat();
     filterMenu(cat, document.getElementById('menu-search').value.trim());
 
-    // Scroll to section for leaf/subcat
     if (type === 'leaf' && pill.dataset.section) {
       const sec = document.getElementById(pill.dataset.section);
       if (sec) sec.scrollIntoView({
@@ -1607,7 +1694,6 @@ layoutHeader('Order Now', '');
     }
   });
 
-  // Sub-pill clicks
   document.getElementById('cat-subpills').addEventListener('click', e => {
     const btn = e.target.closest('.cat-subpill');
     if (!btn) return;
@@ -1644,22 +1730,18 @@ layoutHeader('Order Now', '');
     const q = query.toLowerCase();
     let visibleTotal = 0;
 
-    // Build group cat set if filtering by group without subcat
     let groupCatIds = null;
     if (cat.startsWith('group:')) {
       const gid = cat.split(':')[1];
       if (gid) {
-        groupCatIds = new Set(
-          [...document.querySelectorAll('#subpills-' + gid + ' .cat-subpill')]
-          .map(b => b.dataset.cat)
-        );
+        groupCatIds = new Set([...document.querySelectorAll('#subpills-' + gid + ' .cat-subpill')].map(b => b.dataset.cat));
       }
     }
 
     document.querySelectorAll('.cat-section').forEach(section => {
       let catMatch;
       if (cat === 'group:' || !cat) {
-        catMatch = true; // All tab
+        catMatch = true;
       } else if (groupCatIds) {
         catMatch = groupCatIds.has(section.dataset.cat);
       } else {
@@ -1687,7 +1769,6 @@ layoutHeader('Order Now', '');
     document.getElementById('no-results-term').textContent = query;
   }
 
-  // Close modal on backdrop click
   document.getElementById('custom-modal').addEventListener('click', function(e) {
     if (e.target === this) closeCustomModal();
   });
