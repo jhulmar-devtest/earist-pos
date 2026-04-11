@@ -350,6 +350,7 @@ layoutHeader('Products');
   </div>
 </div>
 <?php showFlash('global'); ?>
+
 <style>
   .category-delete-card {
     margin-bottom: 1.5rem;
@@ -359,14 +360,30 @@ layoutHeader('Products');
   }
   .category-delete-table th,
   .category-delete-table td {
-    padding: 0.85rem;
+    padding: 1rem 0.5rem;
     vertical-align: middle;
+    border-bottom: 1px solid var(--border-color-light);
   }
-  .category-delete-table td.category-name {
-    white-space: nowrap;
+  .category-delete-table th {
+    background: var(--surface-raised);
+    font-weight: 600;
+    color: var(--text-strong);
   }
-  .category-delete-table td.category-sub {
-    padding-left: 2.5rem;
+  .category-delete-table tbody tr:hover {
+    background: var(--surface-hover);
+  }
+  .category-parent-row td {
+    font-size: 0.95rem;
+    border-bottom: 2px solid var(--border-color);
+  }
+  .category-child-row {
+    background: var(--surface-raised);
+  }
+  .category-child-row:hover {
+    background: var(--surface-hover);
+  }
+  .category-delete-table .btn-danger {
+    min-width: 80px;
   }
 </style>
 
@@ -446,38 +463,95 @@ layoutHeader('Products');
     <table class="data-table category-delete-table">
       <thead>
         <tr>
-          <th>Category</th>
-          <th style="width:160px">Actions</th>
+          <th style="width: 60%; padding-left: 1rem;">Category</th>
+          <th style="width: 40%; text-align: right; padding-right: 1rem;">Products</th>
+          <th style="width: 120px;">Actions</th>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($allCats)): ?>
           <tr>
-            <td colspan="2" style="text-align:center;padding:20px;color:var(--text-muted)">No categories found.</td>
+            <td colspan="3" style="text-align:center;padding:30px;color:var(--text-muted)">
+              <i class="fa-solid fa-folder-open" style="font-size: 2rem; opacity: 0.5; display: block; margin-bottom: 0.5rem;"></i>
+              No categories found
+            </td>
           </tr>
         <?php else: ?>
           <?php foreach ($catGroups as $group): ?>
-            <tr>
-              <td class="category-name"><strong><?= e($group['name']) ?></strong></td>
-              <td>
-                <form method="POST" onsubmit="return confirm('Delete this category and its products? This cannot be undone.')" style="display:inline">
-                  <?= csrfField() ?>
-                  <input type="hidden" name="_method" value="DELETE_CATEGORY">
-                  <input type="hidden" name="category_id" value="<?= $group['id'] ?>">
-                  <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                </form>
+            <?php 
+            // Count products in this group and its subcategories
+            $groupProductCount = 0;
+            $groupChildren = $catsByParent[$group['id']] ?? [];
+            $allGroupCatIds = [$group['id']];
+            foreach ($groupChildren as $sub) {
+              $allGroupCatIds[] = $sub['id'];
+            }
+            if (!empty($allGroupCatIds)) {
+              $placeholders = implode(',', array_fill(0, count($allGroupCatIds), '?'));
+              $stmt = $db->prepare("SELECT COUNT(*) FROM products WHERE category_id IN ($placeholders)");
+              $stmt->execute($allGroupCatIds);
+              $groupProductCount = $stmt->fetchColumn();
+            }
+            ?>
+            <tr class="category-parent-row">
+              <td style="padding-left: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <i class="fa-solid fa-folder" style="color: var(--primary-color); font-size: 1.1rem;"></i>
+                  <div>
+                    <strong><?= e($group['name']) ?></strong>
+                    <?php if (!empty($groupChildren)): ?>
+                      <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+                        <?= count($groupChildren) ?> submenu<?= count($groupChildren) !== 1 ? 's' : '' ?>
+                      </div>
+                    <?php endif; ?>
+                  </div>
+                </div>
+              </td>
+              <td style="text-align: right; padding-right: 1rem; color: var(--text-muted); font-size: 0.9rem;">
+                <?= number_format($groupProductCount) ?> product<?= $groupProductCount !== 1 ? 's' : '' ?>
+              </td>
+              <td style="text-align: right; padding-right: 1rem;">
+                <?php if (!empty($groupChildren)): ?>
+                  <span class="text-muted" style="font-size: 0.8rem;">Contains submenus</span>
+                <?php else: ?>
+                  <form method="POST" onsubmit="return confirm('Delete <?= e($group['name']) ?> category and its <?= number_format($groupProductCount) ?> product<?= $groupProductCount !== 1 ? 's' : '' ?>? This cannot be undone.')" style="display:inline">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="_method" value="DELETE_CATEGORY">
+                    <input type="hidden" name="category_id" value="<?= $group['id'] ?>">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                      <i class="fa-solid fa-trash"></i> Delete
+                    </button>
+                  </form>
+                <?php endif; ?>
               </td>
             </tr>
-            <?php if (!empty($catsByParent[$group['id']])): ?>
-              <?php foreach ($catsByParent[$group['id']] as $sub): ?>
-                <tr>
-                  <td class="category-sub"><?= e($sub['name']) ?></td>
-                  <td>
-                    <form method="POST" onsubmit="return confirm('Delete this category and its products? This cannot be undone.')" style="display:inline">
+            <?php if (!empty($groupChildren)): ?>
+              <?php foreach ($groupChildren as $sub): ?>
+                <?php 
+                // Count products in this subcategory
+                $subProductCount = 0;
+                $stmt = $db->prepare("SELECT COUNT(*) FROM products WHERE category_id = ?");
+                $stmt->execute([$sub['id']]);
+                $subProductCount = $stmt->fetchColumn();
+                ?>
+                <tr class="category-child-row">
+                  <td style="padding-left: 3rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                      <i class="fa-solid fa-folder-open" style="color: var(--success-color); font-size: 1rem;"></i>
+                      <span><?= e($sub['name']) ?></span>
+                    </div>
+                  </td>
+                  <td style="text-align: right; padding-right: 1rem; color: var(--text-muted); font-size: 0.9rem;">
+                    <?= number_format($subProductCount) ?> product<?= $subProductCount !== 1 ? 's' : '' ?>
+                  </td>
+                  <td style="text-align: right; padding-right: 1rem;">
+                    <form method="POST" onsubmit="return confirm('Delete <?= e($sub['name']) ?> category and its <?= number_format($subProductCount) ?> product<?= $subProductCount !== 1 ? 's' : '' ?>? This cannot be undone.')" style="display:inline">
                       <?= csrfField() ?>
                       <input type="hidden" name="_method" value="DELETE_CATEGORY">
                       <input type="hidden" name="category_id" value="<?= $sub['id'] ?>">
-                      <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                      <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="fa-solid fa-trash"></i> Delete
+                      </button>
                     </form>
                   </td>
                 </tr>
