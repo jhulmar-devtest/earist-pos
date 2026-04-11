@@ -8,6 +8,10 @@ $db = Database::getInstance();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_method']) && $_POST['_method'] === 'DELETE') {
   verifyCsrf();
   $id = (int)$_POST['product_id'];
+  
+  // **NEW: Delete related order details first**
+  $db->prepare("DELETE od FROM order_details od WHERE od.product_id = ?")->execute([$id]);
+  
   // Delete the old image file if it exists
   $stmt = $db->prepare("SELECT image_path FROM products WHERE id=?");
   $stmt->execute([$id]);
@@ -267,10 +271,26 @@ foreach ($images as $img) {
   }
 }
 
-// Then delete products
+// **NEW: Delete order details FIRST**
+$stmt = $db->prepare("DELETE od FROM order_details od 
+                      JOIN products p ON od.product_id = p.id 
+                      WHERE p.category_id IN ($placeholders)");
+$stmt->execute($categoryIds);
+
+// Delete product images
+$stmt = $db->prepare("SELECT image_path FROM products WHERE category_id IN ($placeholders)");
+$stmt->execute($categoryIds);
+$images = $stmt->fetchAll(PDO::FETCH_COLUMN);
+foreach ($images as $img) {
+  if ($img && file_exists(UPLOAD_DIR . $img)) {
+    unlink(UPLOAD_DIR . $img);
+  }
+}
+
+// Now delete products (safe after order details are gone)
 $db->prepare("DELETE FROM products WHERE category_id IN ($placeholders)")->execute($categoryIds);
 
-// Then delete categories
+// Finally delete categories
 $db->prepare("DELETE FROM categories WHERE id IN ($placeholders)")->execute($categoryIds);
 
   auditLog(ROLE_ADMIN, currentUserId(), 'delete_category', 'categories', $catId);
@@ -731,7 +751,7 @@ layoutHeader('Products');
         </div>
 
         <div class="form-group">
-          <label class="form-label">Category Menu <span style="color:var(--status-cancelled)">*</span></label>
+          <label class="form-label">Sub Category <span style="color:var(--status-cancelled)">*</span></label>
           <input type="text" name="category_name" class="form-control" required placeholder="e.g. Coffee, Breakfast, Pasta">
         </div>
 
