@@ -46,6 +46,8 @@ function layoutHeader(string $pageTitle = '', string $extraHead = ''): void {
     $roleIcon = 'fa-user-shield';
   } elseif ($role === ROLE_CASHIER) {
     $roleIcon = 'fa-cash-register';
+  } elseif ($role === ROLE_FACULTY) {
+    $roleIcon = 'fa-chalkboard-teacher';
   } else {
     $roleIcon = 'fa-graduation-cap';
   }
@@ -79,6 +81,14 @@ function layoutHeader(string $pageTitle = '', string $extraHead = ''): void {
     $nav .= navItem('fa-cart-shopping',      'My Cart',    $appUrl . '/student/cart.php',      $pageTitle, studentCartCount());
     $nav .= navItem('fa-clock-rotate-left',  'My Orders',  $appUrl . '/student/orders.php',    $pageTitle);
     $nav .= navItem('fa-gear',  'Settings',  $appUrl . '../settings.php',    $pageTitle);
+    $nav .= '<div class="nav-section-label">Account</div>';
+  } elseif ($role === ROLE_FACULTY) {
+    $nav .= '<div class="nav-section-label">My Account</div>';
+    $nav .= navItem('fa-house', 'Dashboard', $appUrl . '/faculty/dashboard.php', $pageTitle);
+    $nav .= navItem('fa-utensils', 'Order Now', $appUrl . '/faculty/menu.php', $pageTitle);
+    $nav .= navItem('fa-cart-shopping', 'My Cart', $appUrl . '/faculty/cart.php', $pageTitle);
+    $nav .= navItem('fa-clock-rotate-left', 'My Orders', $appUrl . '/faculty/orders.php', $pageTitle);
+    $nav .= navItem('fa-gear', 'Settings', $appUrl . '/settings.php', $pageTitle);
     $nav .= '<div class="nav-section-label">Account</div>';
   }
 
