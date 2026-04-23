@@ -63,24 +63,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
 
 $orders = $db->query(
   "SELECT o.id, o.order_number, o.status, o.total_amount, o.created_at, o.notes,
+          o.locked_by, o.locked_at, o.lock_expire_at,
+          COALESCE(s.full_name, f.full_name) AS customer_name,
+          COALESCE(s.student_id_no, f.faculty_id_no) AS customer_id,
+          p.payment_method, p.reference_number,
+          c.full_name AS locked_by_name,
+          GROUP_CONCAT(CONCAT(od.quantity,'× ',pr.name,
+            IF(od.customization_note IS NOT NULL AND od.customization_note != '',
+               CONCAT(' (',od.customization_note,')'), ''))
+            ORDER BY pr.name SEPARATOR '\n') AS items
+   FROM orders o
+   LEFT JOIN students s ON o.student_id = s.id
+   LEFT JOIN faculty f ON o.faculty_id = f.id
+   JOIN order_details od ON o.id = od.order_id
+   JOIN products pr ON od.product_id = pr.id
+   LEFT JOIN payments p ON o.id = p.order_id
+   LEFT JOIN cashiers c ON o.locked_by = c.id
+   WHERE o.order_type = 'pre-order'
+     AND o.status IN ('pending','preparing','ready')
+   GROUP BY o.id, o.order_number, o.status, o.total_amount, o.created_at, o.notes,
             o.locked_by, o.locked_at, o.lock_expire_at,
-            s.full_name AS student_name, s.student_id_no,
-            p.payment_method, p.reference_number,
-            c.full_name AS locked_by_name,
-            GROUP_CONCAT(CONCAT(od.quantity,'× ',pr.name, IF(od.customization_note IS NOT NULL AND od.customization_note != '', CONCAT(' (',od.customization_note,')'), '')) ORDER BY pr.name SEPARATOR '\n') AS items
-     FROM orders o
-     JOIN students s ON o.student_id = s.id
-     JOIN order_details od ON o.id = od.order_id
-     JOIN products pr ON od.product_id = pr.id
-     LEFT JOIN payments p ON o.id = p.order_id
-     LEFT JOIN cashiers c ON o.locked_by = c.id
-     WHERE o.order_type = 'pre-order'
-       AND o.status IN ('pending','preparing','ready')
-     GROUP BY o.id, o.order_number, o.status, o.total_amount, o.created_at, o.notes,
-              o.locked_by, o.locked_at, o.lock_expire_at,
-              s.full_name, s.student_id_no, p.payment_method, p.reference_number, c.full_name
-     ORDER BY FIELD(o.status,'ready','preparing','pending'), o.created_at ASC"
+            customer_name, customer_id, p.payment_method, p.reference_number, c.full_name
+   ORDER BY FIELD(o.status,'ready','preparing','pending'), o.created_at ASC"
 )->fetchAll();
+
 
 $counts = ['pending' => 0, 'preparing' => 0, 'ready' => 0];
 foreach ($orders as $o) $counts[$o['status']] = ($counts[$o['status']] ?? 0) + 1;
@@ -614,15 +620,15 @@ layoutHeader('Pre-orders', '');
             </div>
           <?php endif; ?>
 
-          <!-- Student -->
-          <div class="student-row">
-            <div class="student-avatar"><i class="fa-solid fa-graduation-cap"></i></div>
-            <div>
-              <div class="student-name"><?= e($o['student_name']) ?></div>
-              <div class="student-id"><?= e($o['student_id_no']) ?></div>
+          <!-- Customer -->
+          <div class="customer-row">
+             <div class="customer-avatar"><i class="fa-solid fa-id-card"></i></div>
+          <div>
+             <div class="customer-name"><?= e($o['customer_name']) ?></div>
+              <div class="customer-id"><?= e($o['customer_id']) ?></div>
             </div>
           </div>
-
+          
           <!-- Items -->
           <div class="items-box">
             <?php foreach (explode("\n", $o['items']) as $line): ?>
@@ -692,10 +698,12 @@ layoutHeader('Pre-orders', '');
               </button>
 
             <?php elseif ($o['status'] === STATUS_READY): ?>
-              <button type="button" class="btn btn-success btn-sm flex-1" onclick="handleClaimOrder(<?= $o['id'] ?>, '<?= e($o['student_name']) ?>')">
-                <i class="fa-solid fa-id-card"></i> Claim Order
-              </button>
-            <?php endif; ?>
+  <button type="button" class="btn btn-success btn-sm flex-1"
+    onclick="handleClaimOrder(<?= $o['id'] ?>, '<?= e($o['customer_name']) ?>')">
+    <i class="fa-solid fa-id-card"></i> Claim Order
+  </button>
+<?php endif; ?>
+
 
             <button type="button" class="btn btn-danger btn-sm" onclick="handleCancelOrder(<?= $o['id'] ?>, '<?= e($o['order_number']) ?>')" title="Cancel order">
               <i class="fa-solid fa-xmark"></i>
