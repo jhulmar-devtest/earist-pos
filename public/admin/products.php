@@ -45,7 +45,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_product'])) {
   $desc     = sanitizeString($_POST['description'] ?? '', 500);
   $hasSizes  = isset($_POST['has_sizes'])  ? 1 : 0;
   $hasSugar  = isset($_POST['has_sugar'])  ? 1 : 0;
-  $hasAddons = isset($_POST['has_addons']) ? 1 : 0;
 
   if (empty($name) || $catId < 1 || $price <= 0) {
     flash('global', 'Please fill in all required fields.', 'error');
@@ -104,19 +103,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_product'])) {
     // Edit existing product
     if ($newImageName) {
       // Update with new image
-      $db->prepare("UPDATE products SET name=?,category_id=?,price=?,description=?,image_path=?,has_sizes=?,has_sugar=?,has_addons=? WHERE id=?")
-        ->execute([$name, $catId, $price, $desc, $newImageName, $hasSizes, $hasSugar, $hasAddons, $pid]);
+      $db->prepare("UPDATE products SET name=?,category_id=?,price=?,description=?,image_path=?,has_sizes=?,has_sugar=? WHERE id=?")
+        ->execute([$name, $catId, $price, $desc, $newImageName, $hasSizes, $hasSugar, $pid]);
     } else {
       // Keep the existing image
-      $db->prepare("UPDATE products SET name=?,category_id=?,price=?,description=?,has_sizes=?,has_sugar=?,has_addons=? WHERE id=?")
-        ->execute([$name, $catId, $price, $desc, $hasSizes, $hasSugar, $hasAddons, $pid]);
+      $db->prepare("UPDATE products SET name=?,category_id=?,price=?,description=?,has_sizes=?,has_sugar=? WHERE id=?")
+        ->execute([$name, $catId, $price, $desc, $hasSizes, $hasSugar, $pid]);
     }
     auditLog(ROLE_ADMIN, currentUserId(), 'edit_product', 'products', $pid);
     flash('global', 'Product updated.', 'success');
   } else {
     // Add new product
-    $db->prepare("INSERT INTO products (name,category_id,price,description,image_path,has_sizes,has_sugar,has_addons) VALUES (?,?,?,?,?,?,?,?)")
-      ->execute([$name, $catId, $price, $desc, $newImageName, $hasSizes, $hasSugar, $hasAddons]);
+    $db->prepare("INSERT INTO products (name,category_id,price,description,image_path,has_sizes,has_sugar) VALUES (?,?,?,?,?,?,?)")
+      ->execute([$name, $catId, $price, $desc, $newImageName, $hasSizes, $hasSugar]);
     $newId = (int)$db->lastInsertId();
     auditLog(ROLE_ADMIN, currentUserId(), 'add_product', 'products', $newId);
     flash('global', 'Product added.', 'success');
@@ -183,10 +182,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_category_with_pr
   }
   $productPrices = $_POST['product_price'] ?? [];
   $productDescs = $_POST['product_desc'] ?? [];
-  $hasSizesArr = $_POST['product_has_sizes'] ?? [];
-  $hasSugarArr = $_POST['product_has_sugar'] ?? [];
-  $hasAddonsArr = $_POST['product_has_addons'] ?? [];
-
   $numProducts = count($productNames);
   for ($i = 0; $i < $numProducts; $i++) {
     $pName = sanitizeString($productNames[$i] ?? '');
@@ -194,7 +189,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_category_with_pr
     $pDesc = sanitizeString($productDescs[$i] ?? '', 500);
     $pHasSizes = isset($_POST["product_has_sizes_$i"]) ? 1 : 0;
     $pHasSugar = isset($_POST["product_has_sugar_$i"]) ? 1 : 0;
-    $pHasAddons = isset($_POST["product_has_addons_$i"]) ? 1 : 0;
 
     if (!empty($pName) && $pPrice > 0) {
       // Handle image for this product
@@ -226,8 +220,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_category_with_pr
         }
       }
 
-      $db->prepare("INSERT INTO products (name, category_id, price, description, image_path, has_sizes, has_sugar, has_addons) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-        ->execute([$pName, $catId, $pPrice, $pDesc, $pImageName, $pHasSizes, $pHasSugar, $pHasAddons]);
+      $db->prepare("INSERT INTO products (name, category_id, price, description, image_path, has_sizes, has_sugar) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        ->execute([$pName, $catId, $pPrice, $pDesc, $pImageName, $pHasSizes, $pHasSugar]);
       $pId = (int)$db->lastInsertId();
       auditLog(ROLE_ADMIN, currentUserId(), 'add_product', 'products', $pId);
     }
@@ -361,6 +355,9 @@ layoutHeader('Products');
     <div class="page-header-sub"><?= count($products) ?> product<?= count($products) !== 1 ? 's' : '' ?> · Manage your menu items</div>
   </div>
   <div class="page-header-actions">
+    <button class="btn btn-secondary" onclick="openAddonsListModal()">
+      <i class="fa-solid fa-layer-group"></i> Add-ons
+    </button>
     <button class="btn btn-primary" onclick="openAddModal()">
       <i class="fa-solid fa-plus"></i> Add Product
     </button>
@@ -593,7 +590,7 @@ layoutHeader('Products');
 </div>
 
 <!-- Hidden delete form — separate from the save form (forms cannot be nested) -->
-<form method="POST" id="delete-form" onsubmit="return confirmDelete()">
+<form method="POST" id="delete-form" onsubmit="return confirmDelete(document.getElementById('modal-delete-btn').dataset.name)">
   <?= csrfField() ?>
   <input type="hidden" name="_method" value="DELETE">
   <input type="hidden" name="product_id" id="delete-product-id" value="">
@@ -690,7 +687,7 @@ layoutHeader('Products');
                 style="width:16px;height:16px;accent-color:var(--primary-color);cursor:pointer">
               <span>
                 <strong>Sizes</strong>
-                <span style="color:var(--text-muted);font-weight:400"> — Small (−₱10) / Medium / Large (+₱15)</span>
+                <span style="color:var(--text-muted);font-weight:400"> — 16oz / 22oz (+₱10)</span>
               </span>
             </label>
             <label style="display:flex;align-items:center;gap:var(--space-3);cursor:pointer;font-size:0.84rem">
@@ -701,14 +698,15 @@ layoutHeader('Products');
                 <span style="color:var(--text-muted);font-weight:400"> — Full / Less / 50% / No Sugar</span>
               </span>
             </label>
-            <label style="display:flex;align-items:center;gap:var(--space-3);cursor:pointer;font-size:0.84rem">
-              <input type="checkbox" name="has_addons" id="f-has-addons" value="1"
-                style="width:16px;height:16px;accent-color:var(--primary-color);cursor:pointer">
-              <span>
-                <strong>Add-ons</strong>
-                <span style="color:var(--text-muted);font-weight:400"> — show extra items from the Add-ons category</span>
-              </span>
-            </label>
+          </div>
+          <!-- Product Add-ons Manager -->
+          <div style="margin-top:var(--space-3)">
+            <button type="button" class="btn btn-sm btn-outline" id="manage-addons-btn" onclick="openManageAddonsModal()" style="display:none">
+              <i class="fa-solid fa-sliders"></i> Manage Add-ons
+            </button>
+            <div id="addons-count-display" style="font-size:0.78rem;color:var(--text-muted);margin-top:6px;display:none">
+              <span id="addons-count">0</span> add-on(s) assigned to this product
+            </div>
           </div>
         </div>
 
@@ -726,6 +724,113 @@ layoutHeader('Products');
         </button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ===================== MANAGE ADD-ONS MODAL ===================== -->
+<div class="modal-overlay hidden" id="manage-addons-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">
+        <i class="fa-solid fa-sliders"></i> Manage Add-ons for Product
+      </div>
+      <button class="modal-close" onclick="closeManageAddonsModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="modal-body">
+      <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem">
+        Select which add-ons are available for this product. All add-ons are optional — customers must manually select them.
+      </p>
+
+      <div id="manage-addons-list" style="display:flex;flex-direction:column;gap:var(--space-2);max-height:400px;overflow-y:auto">
+        <!-- Add-ons checkboxes will be loaded here -->
+        <div style="text-align:center;padding:2rem;color:var(--text-muted)">
+          <i class="fa-solid fa-circle-notch fa-spin" style="font-size:1.5rem"></i>
+          <div style="margin-top:0.5rem;font-size:0.85rem">Loading add-ons...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeManageAddonsModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="saveProductAddons()">
+        <i class="fa-solid fa-floppy-disk"></i> Save Add-ons
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== ADD ADD-ON MODAL ===================== -->
+<div class="modal-overlay hidden" id="add-addon-modal" style="z-index:1100">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">
+        <i class="fa-solid fa-plus"></i> Add New Add-on
+      </div>
+      <button class="modal-close" onclick="closeAddAddonModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Add-on Name <span style="color:var(--status-cancelled)">*</span></label>
+        <input type="text" id="new-addon-name" class="form-control" placeholder="e.g. Extra Shot, Cheese, Pearl">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Price (₱) <span style="color:var(--status-cancelled)">*</span></label>
+        <input type="number" id="new-addon-price" class="form-control" min="0" step="0.50" placeholder="0.00">
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeAddAddonModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="saveNewAddon()">
+        <i class="fa-solid fa-floppy-disk"></i> Save Add-on
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== ADD-ONS LIST MODAL ===================== -->
+<div class="modal-overlay hidden" id="addons-list-modal">
+  <div class="modal" style="max-width:800px;width:95vw;">
+    <div class="modal-header">
+      <div class="modal-title">
+        <i class="fa-solid fa-layer-group"></i> Manage Add-ons
+      </div>
+      <button class="modal-close" onclick="closeAddonsListModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="modal-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <p style="font-size:0.85rem;color:var(--text-muted);margin:0">
+          Create and manage add-ons that can be assigned to products.
+        </p>
+        <button type="button" class="btn btn-sm btn-primary" onclick="openAddAddonModal()">
+          <i class="fa-solid fa-plus"></i> Add Add-on
+        </button>
+      </div>
+
+      <div id="addons-list-table" style="overflow-x:auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Price</th>
+              <th>Status</th>
+              <th style="width:100px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="addons-list-body">
+            <!-- Add-ons will be loaded here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeAddonsListModal()">Close</button>
+    </div>
   </div>
 </div>
 
@@ -790,6 +895,14 @@ layoutHeader('Products');
 <script>
   const imgBase = '<?= $imgBase ?>';
 
+  // HTML escape helper function
+  function e(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   function openAddModal() {
     // Reset form for a fresh Add
     document.getElementById('f-product-id').value = '0';
@@ -797,12 +910,14 @@ layoutHeader('Products');
     document.getElementById('f-price').value = '';
     document.getElementById('f-desc').value = '';
     document.getElementById('f-image').value = '';
+    document.getElementById('f-category').selectedIndex = 0;
     document.getElementById('current-img-wrap').style.display = 'none';
     document.getElementById('new-img-wrap').style.display = 'none';
     document.getElementById('modal-delete-btn').style.display = 'none';
     document.getElementById('f-has-sizes').checked = false;
     document.getElementById('f-has-sugar').checked = false;
-    document.getElementById('f-has-addons').checked = false;
+    document.getElementById('manage-addons-btn').style.display = 'none';
+    document.getElementById('addons-count-display').style.display = 'none';
     document.getElementById('modal-title').innerHTML =
       '<i class="fa-solid fa-plus"></i> Add Product';
     document.getElementById('product-modal').classList.remove('hidden');
@@ -812,7 +927,13 @@ layoutHeader('Products');
     document.getElementById('product-modal').classList.add('hidden');
   }
 
+  let currentEditProductId = null;
+  let currentEditProductHasAddons = false;
+
   function editProduct(p) {
+    currentEditProductId = p.id;
+    currentEditProductHasAddons = !!parseInt(p.has_addons);
+
     document.getElementById('f-product-id').value = p.id;
     document.getElementById('f-name').value = p.name;
     document.getElementById('f-category').value = p.category_id;
@@ -837,17 +958,46 @@ layoutHeader('Products');
     // Customisation flags
     document.getElementById('f-has-sizes').checked = !!parseInt(p.has_sizes);
     document.getElementById('f-has-sugar').checked = !!parseInt(p.has_sugar);
-    document.getElementById('f-has-addons').checked = !!parseInt(p.has_addons);
+
+    // Show manage add-ons button if product exists
+    const manageBtn = document.getElementById('manage-addons-btn');
+    const addonsCountDisplay = document.getElementById('addons-count-display');
+    if (p.id > 0) {
+      manageBtn.style.display = 'inline-flex';
+      addonsCountDisplay.style.display = 'block';
+      // Load current add-ons count
+      loadProductAddonsCount(p.id);
+    } else {
+      manageBtn.style.display = 'none';
+      addonsCountDisplay.style.display = 'none';
+    }
 
     document.getElementById('modal-title').innerHTML =
       '<i class="fa-solid fa-pen"></i> Edit Product';
     document.getElementById('product-modal').classList.remove('hidden');
   }
 
+  function loadProductAddonsCount(productId) {
+    fetch(`<?= APP_URL ?>/api/get_addons.php?product_id=${productId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          const checkedCount = data.addons.filter(a => a.is_checked).length;
+          document.getElementById('addons-count').textContent = checkedCount;
+        }
+      })
+      .catch(err => console.error('Failed to load add-ons count:', err));
+  }
+
   function submitDelete() {
-    const name = document.getElementById('modal-delete-btn').dataset.name || 'this product';
-    if (!confirmDelete('Delete "' + name + '"? This cannot be undone.')) return;
+    const name = document.getElementById('modal-delete-btn').dataset.name || '';
+    if (!confirmDelete(name)) return;
     document.getElementById('delete-form').submit();
+  }
+
+  function confirmDelete(name) {
+    const label = name ? `Delete "${name}"?` : 'Delete this product?';
+    return confirm(label + ' This cannot be undone.');
   }
 
   function handleToggle(el) {
@@ -879,6 +1029,245 @@ layoutHeader('Products');
   document.getElementById('product-modal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
   });
+
+  // ===================== ADD-ON MANAGEMENT =====================
+
+  function openManageAddonsModal() {
+    if (!currentEditProductId) return;
+
+    document.getElementById('manage-addons-modal').classList.remove('hidden');
+    loadManageAddonsList(currentEditProductId);
+  }
+
+  function closeManageAddonsModal() {
+    document.getElementById('manage-addons-modal').classList.add('hidden');
+  }
+
+  function loadManageAddonsList(productId) {
+    const container = document.getElementById('manage-addons-list');
+    container.innerHTML = `
+      <div style="text-align:center;padding:2rem;color:var(--text-muted)">
+        <i class="fa-solid fa-circle-notch fa-spin" style="font-size:1.5rem"></i>
+        <div style="margin-top:0.5rem;font-size:0.85rem">Loading add-ons...</div>
+      </div>
+    `;
+
+    fetch(`<?= APP_URL ?>/api/get_addons.php?product_id=${productId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success) {
+          container.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--status-cancelled)">Failed to load add-ons</div>';
+          return;
+        }
+
+        if (data.addons.length === 0) {
+          container.innerHTML = `
+            <div style="text-align:center;padding:2rem;color:var(--text-muted)">
+              <i class="fa-solid fa-inbox" style="font-size:2rem;opacity:0.3;margin-bottom:0.5rem"></i>
+              <div style="font-size:0.85rem">No add-ons available yet.</div>
+              <button type="button" class="btn btn-sm btn-primary" style="margin-top:0.5rem" onclick="closeManageAddonsModal();openAddAddonModal()">
+                <i class="fa-solid fa-plus"></i> Create First Add-on
+              </button>
+            </div>
+          `;
+          return;
+        }
+
+        let html = '';
+        data.addons.forEach(addon => {
+          html += `
+            <label style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);border:1.5px solid var(--border-color);border-radius:var(--radius-sm);cursor:pointer;transition:all var(--transition-fast);${addon.is_checked ? 'border-color:var(--primary-color);background:var(--primary-subtle)' : 'background:var(--surface-color)'}"
+              onmouseover="this.style.borderColor='var(--primary-color)'"
+              onmouseout="this.style.borderColor='${addon.is_checked ? 'var(--primary-color)' : 'var(--border-color)'}'">
+              <input type="checkbox" class="addon-cb" data-addon-id="${addon.id}" value="1" ${addon.is_checked ? 'checked' : ''}
+                style="width:18px;height:18px;accent-color:var(--primary-color);cursor:pointer">
+              <span style="flex:1;font-size:0.9rem;font-weight:500">${e(addon.name)}</span>
+              <span style="font-size:0.85rem;font-weight:700;color:var(--primary-color)">+₱${parseFloat(addon.price).toFixed(2)}</span>
+            </label>
+          `;
+        });
+        container.innerHTML = html;
+      })
+      .catch(err => {
+        console.error('Failed to load add-ons:', err);
+        container.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--status-cancelled)">Failed to load add-ons</div>';
+      });
+  }
+
+  function saveProductAddons() {
+    const productId = currentEditProductId;
+    const addonIds = [];
+    document.querySelectorAll('.addon-cb:checked').forEach(cb => {
+      addonIds.push(cb.dataset.addonId);
+    });
+
+    const formData = new FormData();
+    formData.append('product_id', productId);
+    formData.append('addon_ids', JSON.stringify(addonIds));
+    formData.append('csrf_token', '<?= csrfToken() ?>');
+
+    fetch('<?= APP_URL ?>/api/save_product_addons.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          document.getElementById('addons-count').textContent = addonIds.length;
+          closeManageAddonsModal();
+          showToast('Add-ons updated successfully');
+        } else {
+          alert('Failed to save: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(err => {
+        console.error('Save failed:', err);
+        alert('Failed to save add-ons');
+      });
+  }
+
+  function openAddAddonModal() {
+    document.getElementById('new-addon-name').value = '';
+    document.getElementById('new-addon-price').value = '';
+    document.getElementById('add-addon-modal').classList.remove('hidden');
+  }
+
+  function closeAddAddonModal() {
+    document.getElementById('add-addon-modal').classList.add('hidden');
+  }
+
+  document.getElementById('add-addon-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddAddonModal();
+  });
+
+  function saveNewAddon() {
+    const name = document.getElementById('new-addon-name').value.trim();
+    const price = parseFloat(document.getElementById('new-addon-price').value) || 0;
+
+    if (!name) {
+      alert('Please enter an add-on name');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('price', price);
+    formData.append('csrf_token', '<?= csrfToken() ?>');
+
+    fetch('<?= APP_URL ?>/api/save_addon.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          closeAddAddonModal();
+          showToast('Add-on "' + name + '" created successfully');
+          // If manage addons modal is open, refresh it
+          if (!document.getElementById('manage-addons-modal').classList.contains('hidden')) {
+            loadManageAddonsList(currentEditProductId);
+          }
+          // If addons list modal is open, refresh it
+          if (!document.getElementById('addons-list-modal').classList.contains('hidden')) {
+            loadAddonsList();
+          }
+        } else {
+          alert('Failed to save: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(err => {
+        console.error('Save failed:', err);
+        alert('Failed to save add-on');
+      });
+  }
+
+  function openAddonsListModal() {
+    document.getElementById('addons-list-modal').classList.remove('hidden');
+    loadAddonsList();
+  }
+
+  function closeAddonsListModal() {
+    document.getElementById('addons-list-modal').classList.add('hidden');
+  }
+
+  document.getElementById('addons-list-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddonsListModal();
+  });
+
+  function loadAddonsList() {
+    const tbody = document.getElementById('addons-list-body');
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted)">
+          <i class="fa-solid fa-circle-notch fa-spin" style="font-size:1.5rem"></i>
+          <div style="margin-top:0.5rem;font-size:0.85rem">Loading...</div>
+        </td>
+      </tr>
+    `;
+
+    fetch('<?= APP_URL ?>/api/get_addons.php')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success || data.addons.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted)">
+                <i class="fa-solid fa-inbox" style="font-size:2rem;opacity:0.3;margin-bottom:0.5rem"></i>
+                <div style="font-size:0.85rem">No add-ons yet. Click "Add Add-on" to create one.</div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        let html = '';
+        data.addons.forEach(addon => {
+          html += `
+            <tr>
+              <td><strong>${e(addon.name)}</strong></td>
+              <td>₱${parseFloat(addon.price).toFixed(2)}</td>
+              <td><span style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;background:rgba(5,150,105,0.1);color:var(--status-ready);padding:2px 8px;border-radius:var(--radius-full)">${addon.status}</span></td>
+              <td>
+                <button type="button" class="btn btn-sm btn-ghost" onclick="toggleAddonStatus(${addon.id}, '${addon.status}')" title="${addon.status === 'active' ? 'Deactivate' : 'Activate'}">
+                  <i class="fa-solid fa-${addon.status === 'active' ? 'pause' : 'play'}"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+        tbody.innerHTML = html;
+      })
+      .catch(err => {
+        console.error('Failed to load add-ons:', err);
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:1rem;color:var(--status-cancelled)">Failed to load add-ons</td></tr>';
+      });
+  }
+
+  function toggleAddonStatus(addonId, currentStatus) {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const formData = new FormData();
+    formData.append('addon_id', addonId);
+    formData.append('status', newStatus);
+    formData.append('csrf_token', '<?= csrfToken() ?>');
+
+    fetch('<?= APP_URL ?>/api/toggle_addon_status.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          showToast('Add-on ' + (newStatus === 'active' ? 'activated' : 'deactivated'));
+          loadAddonsList(); // refresh the list
+        } else {
+          alert('Failed: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(err => {
+        console.error('Toggle failed:', err);
+        alert('Failed to update status');
+      });
+  }
 </script>
 
 <script>
@@ -946,16 +1335,15 @@ layoutHeader('Products');
         <div style="display:flex;flex-direction:column;gap:var(--space-2);margin-top:4px">
           <label style="display:flex;align-items:center;gap:var(--space-3);cursor:pointer;font-size:0.84rem">
             <input type="checkbox" class="size-checkbox" name="product_has_sizes_${productIndex}" value="1" style="width:16px;height:16px;accent-color:var(--primary-color);cursor:pointer" onchange="toggleCustomizationDetails(this, ${productIndex})">
-            <span><strong>Sizes</strong> <span style="color:var(--text-muted);font-weight:400"> — Small (−₱10) / Medium / Large (+₱15)</span></span>
+            <span><strong>Sizes</strong> <span style="color:var(--text-muted);font-weight:400"> — 16oz / 22oz (+₱10)</span></span>
           </label>
           <label style="display:flex;align-items:center;gap:var(--space-3);cursor:pointer;font-size:0.84rem">
             <input type="checkbox" class="sugar-checkbox" name="product_has_sugar_${productIndex}" value="1" style="width:16px;height:16px;accent-color:var(--primary-color);cursor:pointer" onchange="toggleCustomizationDetails(this, ${productIndex})">
             <span><strong>Sugar level</strong> <span style="color:var(--text-muted);font-weight:400"> — Full / Less / 50% / No Sugar</span></span>
           </label>
-          <label style="display:flex;align-items:center;gap:var(--space-3);cursor:pointer;font-size:0.84rem">
-            <input type="checkbox" class="addon-checkbox" name="product_has_addons_${productIndex}" value="1" style="width:16px;height:16px;accent-color:var(--primary-color);cursor:pointer" onchange="toggleCustomizationDetails(this, ${productIndex})">
-            <span><strong>Add-ons</strong> <span style="color:var(--text-muted);font-weight:400"> — show extra items from the Add-ons category</span></span>
-          </label>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px">
+          <i class="fa-solid fa-info-circle"></i> Add-ons can be managed after saving the product
         </div>
       </div>
     `;

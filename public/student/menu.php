@@ -8,7 +8,12 @@ $products = $db->query(
             cp.name AS group_name, cp.id AS group_id,
             COALESCE(ROUND(AVG(pr.rating),1), 0) AS avg_rating,
             COUNT(DISTINCT pr.id) AS rating_count,
-            COALESCE(SUM(od.quantity), 0) AS total_sold
+            COALESCE(SUM(od.quantity), 0) AS total_sold,
+            CASE WHEN EXISTS (
+                SELECT 1 FROM product_addons pa
+                JOIN addons a ON pa.addon_id = a.id
+                WHERE pa.product_id = p.id AND a.status = 'active'
+            ) THEN 1 ELSE 0 END AS has_addons
      FROM products p
      JOIN categories c  ON p.category_id = c.id
      LEFT JOIN categories cp ON c.parent_id = cp.id
@@ -23,14 +28,6 @@ $products = $db->query(
 $soldArr2 = array_column($products, 'total_sold');
 rsort($soldArr2);
 $bestSellerThreshold = ($soldArr2[0] ?? 0) > 0 ? ($soldArr2[min(4, count($soldArr2) - 1)] ?? 1) : PHP_INT_MAX;
-
-// Load add-ons separately (for modal)
-$addons = $db->query(
-  "SELECT p.* FROM products p
-     JOIN categories c ON p.category_id = c.id
-     WHERE c.name = 'Add-ons' AND p.is_available = 1
-     ORDER BY p.name"
-)->fetchAll();
 
 // Load only leaf (assignable) categories — exclude Add-ons and pure group labels
 $allCats    = $db->query("SELECT * FROM categories ORDER BY sort_order")->fetchAll();
@@ -1070,7 +1067,7 @@ layoutHeader('Order Now', '');
 
   .cm-size-group {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: var(--space-2);
   }
 
@@ -1369,7 +1366,7 @@ layoutHeader('Order Now', '');
       <div id="cm-section-size">
         <div class="cm-label">Size</div>
         <div class="cm-size-group">
-          <?php foreach ([['Small', -10], ['Medium', 0], ['Large', 15]] as [$sz, $adj]): ?>
+          <?php foreach ([['16oz', 0], ['22oz', 10]] as [$sz, $adj]): ?>
             <button class="cm-size-btn" onclick="
             document.querySelectorAll('.cm-size-btn').forEach(b=>b.classList.remove('active'));
             this.classList.add('active'); recalcModal();">
@@ -1395,23 +1392,9 @@ layoutHeader('Order Now', '');
 
       <div id="cm-section-addons">
         <div class="cm-label">Add-ons</div>
-        <?php if (empty($addons)): ?>
-          <div class="cm-no-addons">No add-ons available yet.</div>
-        <?php else: ?>
-          <div class="cm-addon-list">
-            <?php foreach ($addons as $addon): ?>
-              <label class="cm-addon-row">
-                <input type="checkbox" class="cm-addon-cb"
-                  data-name="<?= e($addon['name']) ?>"
-                  data-price="<?= $addon['price'] ?>"
-                  onchange="recalcModal()">
-                <div class="cm-addon-check"><i class="fa-solid fa-check"></i></div>
-                <span class="cm-addon-name"><?= e($addon['name']) ?></span>
-                <span class="cm-addon-price">+<?= peso($addon['price']) ?></span>
-              </label>
-            <?php endforeach; ?>
-          </div>
-        <?php endif; ?>
+        <div id="cm-addons-container">
+          <div class="cm-no-addons">No add-ons available.</div>
+        </div>
       </div>
 
       <div class="cm-label">Special Instructions</div>
@@ -1457,6 +1440,12 @@ layoutHeader('Order Now', '');
 </div>
 
 <script>
+  function e(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
   /* ════════════════════════════════════════════════
      CART — keyed by productId + customKey
      ════════════════════════════════════════════════ */
@@ -1522,17 +1511,13 @@ layoutHeader('Order Now', '');
      CUSTOMISATION MODAL
      ════════════════════════════════════════════════ */
   const SIZES = [{
-    label: 'Small',
-    adj: -10
-  }, {
-    label: 'Medium',
+    label: '16oz',
     adj: 0
   }, {
-    label: 'Large',
-    adj: +15
+    label: '22oz',
+    adj: +10
   }];
   const SUGAR_LEVELS = ['Full Sugar', 'Less Sugar', '50% Sugar', 'No Sugar'];
-  const ADDONS = <?php echo json_encode(array_map(fn($a) => ['id' => $a['id'], 'name' => $a['name'], 'price' => (float)$a['price']], $addons)); ?>;
 
   let _modal = {
     id: null,
@@ -1541,7 +1526,8 @@ layoutHeader('Order Now', '');
     imgPath: null,
     hasSizes: false,
     hasSugar: false,
-    hasAddons: false
+    hasAddons: false,
+    addons: []
   };
 
   function openCustomModal(id, name, basePrice, imgPath, hasSizes, hasSugar, hasAddons) {
@@ -1552,7 +1538,8 @@ layoutHeader('Order Now', '');
       imgPath,
       hasSizes: !!hasSizes,
       hasSugar: !!hasSugar,
-      hasAddons: !!hasAddons
+      hasAddons: !!hasAddons,
+      addons: []
     };
 
     document.getElementById('cm-name').textContent = name;
@@ -1573,11 +1560,35 @@ layoutHeader('Order Now', '');
     document.getElementById('cm-section-sugar').style.display = hasSugar ? '' : 'none';
     document.getElementById('cm-section-addons').style.display = hasAddons ? '' : 'none';
 
-    document.querySelectorAll('.cm-size-btn').forEach((b, i) => b.classList.toggle('active', i === 1));
+    document.querySelectorAll('.cm-size-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
     document.querySelectorAll('.cm-sugar-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
-    document.querySelectorAll('.cm-addon-cb').forEach(cb => cb.checked = false);
     document.getElementById('cm-notes').value = '';
     document.getElementById('cm-qty').value = 1;
+
+    // Clear and load add-ons dynamically
+    document.getElementById('cm-addons-container').innerHTML = `
+      <div style="text-align:center;padding:1rem;color:var(--text-muted)">
+        <i class="fa-solid fa-circle-notch fa-spin" style="font-size:1.2rem"></i>
+        <div style="margin-top:0.5rem;font-size:0.8rem">Loading...</div>
+      </div>
+    `;
+
+    if (hasAddons) {
+      fetch(`<?= APP_URL ?>/api/get_product_addons.php?product_id=${id}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.addons.length > 0) {
+            _modal.addons = data.addons;
+            renderModalAddons(data.addons);
+          } else {
+            document.getElementById('cm-addons-container').innerHTML = '<div class="cm-no-addons">No add-ons available for this product.</div>';
+          }
+        })
+        .catch(err => {
+          console.error('Failed to load add-ons:', err);
+          document.getElementById('cm-addons-container').innerHTML = '<div class="cm-no-addons">Failed to load add-ons.</div>';
+        });
+    }
 
     recalcModal();
     document.getElementById('custom-modal').classList.add('open');
@@ -1589,11 +1600,33 @@ layoutHeader('Order Now', '');
     document.body.style.overflow = '';
   }
 
+  function renderModalAddons(addons) {
+    const container = document.getElementById('cm-addons-container');
+    if (!addons || addons.length === 0) {
+      container.innerHTML = '<div class="cm-no-addons">No add-ons available for this product.</div>';
+      return;
+    }
+
+    let html = '<div class="cm-addon-list">';
+    addons.forEach(addon => {
+      html += `
+        <label class="cm-addon-row">
+          <input type="checkbox" class="cm-addon-cb" data-name="${e(addon.name)}" data-price="${addon.price}" onchange="recalcModal()">
+          <div class="cm-addon-check"><i class="fa-solid fa-check"></i></div>
+          <span class="cm-addon-name">${e(addon.name)}</span>
+          <span class="cm-addon-price">+\u20b1${parseFloat(addon.price).toFixed(2)}</span>
+        </label>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
   function recalcModal() {
     const sizeIdx = [...document.querySelectorAll('.cm-size-btn')].findIndex(b => b.classList.contains('active'));
     const sizeAdj = _modal.hasSizes ? (SIZES[sizeIdx]?.adj ?? 0) : 0;
     let addonTotal = 0;
-    if (_modal.hasAddons) {
+    if (_modal.hasAddons && _modal.addons.length > 0) {
       document.querySelectorAll('.cm-addon-cb:checked').forEach(cb => {
         addonTotal += parseFloat(cb.dataset.price);
       });
@@ -1615,7 +1648,7 @@ layoutHeader('Order Now', '');
 
     const chosenAddons = [];
     let addonTotal = 0;
-    if (_modal.hasAddons) {
+    if (_modal.hasAddons && _modal.addons.length > 0) {
       document.querySelectorAll('.cm-addon-cb:checked').forEach(cb => {
         chosenAddons.push(cb.dataset.name);
         addonTotal += parseFloat(cb.dataset.price);

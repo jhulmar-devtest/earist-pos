@@ -98,7 +98,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['process_order'])) {
 $allProducts = $db->query(
   "SELECT p.*, c.name AS cat_name, c.id AS cat_id,
            c.parent_id AS cat_parent, cp.id AS group_id,
-           COALESCE(prs.total_sold, 0) AS total_sold
+           COALESCE(prs.total_sold, 0) AS total_sold,
+           CASE WHEN EXISTS (
+               SELECT 1 FROM product_addons pa 
+               JOIN addons a ON pa.addon_id = a.id 
+               WHERE pa.product_id = p.id AND a.status = 'active'
+           ) THEN 1 ELSE 0 END AS has_addons
    FROM products p
    JOIN categories c  ON p.category_id = c.id
    LEFT JOIN categories cp ON c.parent_id = cp.id
@@ -119,13 +124,6 @@ foreach ($allCats as $cat) {
 }
 $catGroups     = array_filter($allCats, fn($c) => $c['parent_id'] === null && !empty($catsByParent[$c['id']]));
 $catStandalone = array_filter($allCats, fn($c) => $c['parent_id'] === null && empty($catsByParent[$c['id']]));
-
-$addons = $db->query(
-  "SELECT p.* FROM products p
-   JOIN categories c ON p.category_id = c.id
-   WHERE c.name = 'Add-ons' AND p.is_available = 1
-   ORDER BY p.name"
-)->fetchAll();
 
 $imgBase = APP_URL . '/../uploads/products/';
 layoutHeader('Walk-in POS', '');
@@ -770,6 +768,7 @@ layoutHeader('Walk-in POS', '');
     border-radius: var(--radius-full);
     padding: 2px;
     overflow: hidden;
+    width: max-content;
   }
 
   .pos-qty-btn {
@@ -1314,15 +1313,15 @@ layoutHeader('Walk-in POS', '');
         <?php endforeach; ?>
       </div>
       <?php if (!empty($catsByParent)): ?>
-      <div class="filter-sub cat-pills" id="tier-2">
-        <?php foreach ($catsByParent as $parentId => $children): ?>
-          <?php foreach ($children as $subCat): ?>
-            <button class="cat-pill sub-pill" data-parent="<?= $parentId ?>" data-id="<?= $subCat['id'] ?>" style="display:none;">
-              <?= e($subCat['name']) ?>
-            </button>
+        <div class="filter-sub cat-pills" id="tier-2">
+          <?php foreach ($catsByParent as $parentId => $children): ?>
+            <?php foreach ($children as $subCat): ?>
+              <button class="cat-pill sub-pill" data-parent="<?= $parentId ?>" data-id="<?= $subCat['id'] ?>" style="display:none;">
+                <?= e($subCat['name']) ?>
+              </button>
+            <?php endforeach; ?>
           <?php endforeach; ?>
-        <?php endforeach; ?>
-      </div>
+        </div>
       <?php endif; ?>
     </div>
 
@@ -1504,6 +1503,13 @@ layoutHeader('Walk-in POS', '');
 </script>
 
 <script>
+  function e(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   let cart = {};
   let _discountType = 'none';
 
@@ -1882,25 +1888,23 @@ layoutHeader('Walk-in POS', '');
   }
 
   const POS_SIZES = [{
-    label: 'Small',
-    adj: -10
-  }, {
-    label: 'Medium',
+    label: '16oz',
     adj: 0
   }, {
-    label: 'Large',
+    label: '22oz',
     adj: +15
   }];
   const POS_SUGAR = ['Full Sugar', 'Less Sugar', '50% Sugar', 'No Sugar'];
-  const POS_ADDONS = <?php echo json_encode(array_map(fn($a) => ['id' => $a['id'], 'name' => $a['name'], 'price' => (float)$a['price']], $addons)); ?>;
 
   let _pos = {
     id: null,
     name: null,
     basePrice: 0,
+    imgPath: null,
     hasSizes: false,
     hasSugar: false,
-    hasAddons: false
+    hasAddons: false,
+    addons: []
   };
 
   function openPosModal(id, name, basePrice, imgPath, hasSizes, hasSugar, hasAddons) {
@@ -1908,9 +1912,11 @@ layoutHeader('Walk-in POS', '');
       id,
       name,
       basePrice: parseFloat(basePrice),
+      imgPath,
       hasSizes: !!hasSizes,
       hasSugar: !!hasSugar,
-      hasAddons: !!hasAddons
+      hasAddons: !!hasAddons,
+      addons: []
     };
 
     document.getElementById('pm-section-size').style.display = hasSizes ? '' : 'none';
@@ -1931,15 +1937,61 @@ layoutHeader('Walk-in POS', '');
       iconEl.style.display = '';
     }
 
-    document.querySelectorAll('.pm-size-btn').forEach((b, i) => b.classList.toggle('active', i === 1));
+    document.querySelectorAll('.pm-size-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
     document.querySelectorAll('.pm-sugar-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
-    document.querySelectorAll('.pm-addon-cb').forEach(cb => cb.checked = false);
     document.getElementById('pm-notes').value = '';
     document.getElementById('pm-qty').value = 1;
+
+    // Clear and load add-ons dynamically
+    document.getElementById('pm-addons-container').innerHTML = `
+      <div style="text-align:center;padding:1rem;color:var(--text-muted)">
+        <i class="fa-solid fa-circle-notch fa-spin" style="font-size:1.2rem"></i>
+        <div style="margin-top:0.5rem;font-size:0.8rem">Loading...</div>
+      </div>
+    `;
+
+    if (hasAddons) {
+      fetch(`<?= APP_URL ?>/api/get_product_addons.php?product_id=${id}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.addons.length > 0) {
+            _pos.addons = data.addons;
+            renderAddonsList(data.addons);
+          } else {
+            document.getElementById('pm-section-addons').style.display = 'none';
+          }
+        })
+        .catch(err => {
+          console.error('Failed to load add-ons:', err);
+          document.getElementById('pm-section-addons').style.display = 'none';
+        });
+    }
 
     posRecalc();
     document.getElementById('pos-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
+  }
+
+  function renderAddonsList(addons) {
+    const container = document.getElementById('pm-addons-container');
+    if (addons.length === 0) {
+      container.innerHTML = '<div class="pm-no-addons">No add-ons available for this product.</div>';
+      return;
+    }
+
+    let html = '<div class="pm-addon-grid">';
+    addons.forEach(addon => {
+      html += `
+        <label class="pm-addon-row">
+          <input type="checkbox" class="pm-addon-cb" data-name="${e(addon.name)}" data-price="${addon.price}" onchange="posRecalc()">
+          <div class="pm-addon-check"><i class="fa-solid fa-check"></i></div>
+          <span class="pm-addon-name">${e(addon.name)}</span>
+          <span class="pm-addon-price">+₱${parseFloat(addon.price).toFixed(2)}</span>
+        </label>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
   }
 
   function closePosModal() {
@@ -1954,9 +2006,11 @@ layoutHeader('Walk-in POS', '');
     const sizeIdx = [...document.querySelectorAll('.pm-size-btn')].findIndex(b => b.classList.contains('active'));
     const sizeAdj = _pos.hasSizes ? (POS_SIZES[sizeIdx]?.adj ?? 0) : 0;
     let addonTotal = 0;
-    if (_pos.hasAddons) document.querySelectorAll('.pm-addon-cb:checked').forEach(cb => {
-      addonTotal += parseFloat(cb.dataset.price);
-    });
+    if (_pos.hasAddons && _pos.addons.length > 0) {
+      document.querySelectorAll('.pm-addon-cb:checked').forEach(cb => {
+        addonTotal += parseFloat(cb.dataset.price);
+      });
+    }
     const unitPrice = _pos.basePrice + sizeAdj + addonTotal;
     const qty = Math.max(1, parseInt(document.getElementById('pm-qty').value) || 1);
     document.getElementById('pm-unit').textContent = '₱' + unitPrice.toFixed(2);
@@ -1974,7 +2028,7 @@ layoutHeader('Walk-in POS', '');
 
     const chosenAddons = [];
     let addonTotal = 0;
-    if (_pos.hasAddons) {
+    if (_pos.hasAddons && _pos.addons.length > 0) {
       document.querySelectorAll('.pm-addon-cb:checked').forEach(cb => {
         chosenAddons.push(cb.dataset.name);
         addonTotal += parseFloat(cb.dataset.price);
@@ -2148,7 +2202,7 @@ layoutHeader('Walk-in POS', '');
 
   .pm-size-group {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: var(--space-2);
   }
 
@@ -2419,7 +2473,7 @@ layoutHeader('Walk-in POS', '');
       <div id="pm-section-size">
         <div class="pm-section-label">Size</div>
         <div class="pm-size-group">
-          <?php foreach ([['Small', -10], ['Medium', 0], ['Large', 15]] as [$sz, $adj]): ?>
+          <?php foreach ([['16oz', 0], ['22oz', 10]] as [$sz, $adj]): ?>
             <button class="pm-size-btn" onclick="document.querySelectorAll('.pm-size-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');posRecalc();">
               <span class="pm-size-name"><?= $sz ?></span>
               <span class="pm-size-adj"><?= $adj > 0 ? '+₱' . $adj : ($adj < 0 ? '−₱' . abs($adj) : 'Base') ?></span>
@@ -2437,20 +2491,9 @@ layoutHeader('Walk-in POS', '');
       </div>
       <div id="pm-section-addons">
         <div class="pm-section-label">Add-ons</div>
-        <?php if (empty($addons)): ?>
-          <div class="pm-no-addons">No add-ons set up yet.</div>
-        <?php else: ?>
-          <div class="pm-addon-grid">
-            <?php foreach ($addons as $addon): ?>
-              <label class="pm-addon-row">
-                <input type="checkbox" class="pm-addon-cb" data-name="<?= e($addon['name']) ?>" data-price="<?= $addon['price'] ?>" onchange="posRecalc()">
-                <div class="pm-addon-check"><i class="fa-solid fa-check"></i></div>
-                <span class="pm-addon-name"><?= e($addon['name']) ?></span>
-                <span class="pm-addon-price">+<?= peso($addon['price']) ?></span>
-              </label>
-            <?php endforeach; ?>
-          </div>
-        <?php endif; ?>
+        <div id="pm-addons-container">
+          <div class="pm-no-addons">No add-ons available.</div>
+        </div>
       </div>
       <div>
         <div class="pm-section-label">Special Instructions</div>
